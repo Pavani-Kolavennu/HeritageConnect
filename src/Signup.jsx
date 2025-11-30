@@ -1,59 +1,63 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";      // ✅ ADDED
 
 function Signup() {
   const [sname, setSname] = useState("");
   const [pwd, setPwd] = useState("");
   const [email, setEmail] = useState("");
   const [phno, setPhno] = useState("");
-
+  const [captcha, setCaptcha] = useState(null);       // ✅ ADDED
 
   const navigate = useNavigate(); 
- const handleSubmit = async (e) => {
-  e.preventDefault();
 
-  
-  try {
-    const response = await fetch("http://localhost:5000/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: sname,
-        passwd: pwd,
-        email: email,
-        mobileno: phno
-      }),
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-    if (!response.ok) {
-      throw new Error(`Server responded ${response.status}`);
+    if (!captcha) {                                   // ✅ ADDED
+      alert("Please complete the CAPTCHA!");
+      return;
     }
 
-    const data = await response.json();
-    if (data && data.success) {
-      alert("Signed up successfully!");
-      // Persist user info locally so Home can find it and avoid redirecting back to signup
+    try {
+      const response = await fetch("http://localhost:5000/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: sname,
+          passwd: pwd,
+          email: email,
+          mobileno: phno,
+          captcha: captcha                               // ✅ ADDED
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data && data.success) {
+        alert("Signed up successfully!");
+        localStorage.setItem(
+          "formData",
+          JSON.stringify({ name: sname, passwd: pwd, email, mobileno: phno })
+        );
+        navigate("/home");
+        return;
+      }
+
+      if (data && data.message) alert(data.message);
+    } catch (err) {
+      console.warn("Signup backend unavailable, falling back to localStorage:", err.message);
       localStorage.setItem(
         "formData",
         JSON.stringify({ name: sname, passwd: pwd, email, mobileno: phno })
       );
+      alert("Signed up locally (offline). Navigating to Home.");
       navigate("/home");
-      return;
     }
-    // If server responded but did not return success, show message and fall back
-    if (data && data.message) alert(data.message);
-  } catch (err) {
-    // Backend likely not running or network error — fallback to client-side storage
-    console.warn("Signup backend unavailable, falling back to localStorage:", err.message);
-    localStorage.setItem(
-      "formData",
-      JSON.stringify({ name: sname, passwd: pwd, email, mobileno: phno })
-    );
-    alert("Signed up locally (offline). Navigating to Home.");
-    navigate("/home");
-  }
-};
-
+  };
 
   return (
     <div>
@@ -113,45 +117,39 @@ function Signup() {
             display: flex;
             align-items: center;
             padding: 15px 20px;
-          }
-
+        }
         .logo {
           width: 60px;
           height: 60px;
           border-radius: 100%;  
           margin-right: 15px;
         }
-
-    .topbar {
-      width: auto;
-      height: 100px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 20px;  
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 100;
-    }
-
-    .topbar h2 {
-      white-space: nowrap;
-      margin: 0;
-      font-size: 20px;
-      color: rgba(239, 239, 239, 1);
-    }
-         
-}
+        .topbar {
+          width: auto;
+          height: 100px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 20px;  
+          position: fixed;
+          top: 0;
+          left: 0;
+          z-index: 100;
+        }
+        .topbar h2 {
+          white-space: nowrap;
+          margin: 0;
+          font-size: 20px;
+          color: rgba(239, 239, 239, 1);
+        }
       `}</style>
 
- <div className="topbar">
-    <img src="logo.jpg" alt="logo" className="logo" />
-    <h2>Heritage Connect</h2>
-</div>
+      <div className="topbar">
+        <img src="logo.jpg" alt="logo" className="logo" />
+        <h2>Heritage Connect</h2>
+      </div>
 
       <form onSubmit={handleSubmit}>
-       
         <label htmlFor="sname">Name:</label>
         <input type="text" id="sname" value={sname} onChange={(e) => setSname(e.target.value)} required />
 
@@ -164,7 +162,14 @@ function Signup() {
         <label htmlFor="phno">Mobile No:</label>
         <input type="tel" id="phno" value={phno} pattern="[0-9]{10}" onChange={(e) => setPhno(e.target.value)} />
 
+        {/* ✅ CAPTCHA ADDED */}
+        <ReCAPTCHA
+          sitekey="6LcBRxwsAAAAAMO2rNAFPB1JY6qi4sM-hmmfjzGI"
+          onChange={(value) => setCaptcha(value)}
+        />
+
         <input type="submit" value="Sign up" />
+
         <h3>
           Already have an account? <Link to="/login">Login</Link>
         </h3>
