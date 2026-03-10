@@ -1,66 +1,63 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import ReCAPTCHA from "react-google-recaptcha";      // ✅ ADDED
 
 function Signup() {
   const [sname, setSname] = useState("");
   const [pwd, setPwd] = useState("");
   const [email, setEmail] = useState("");
   const [phno, setPhno] = useState("");
-  const [captcha, setCaptcha] = useState(null);       // ✅ ADDED
+  const [captchaValue, setCaptchaValue] = useState("");
+  const [captchaPrompt, setCaptchaPrompt] = useState("");
+  const [captchaAnswer, setCaptchaAnswer] = useState(null);
 
   const navigate = useNavigate(); 
+  const passwordRule = /^.{8}$/;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const generateCaptcha = () => {
+    const first = Math.floor(Math.random() * 9) + 1;
+    const second = Math.floor(Math.random() * 9) + 1;
+    const useAddition = Math.random() > 0.5;
 
-    if (!captcha) {                                   // ✅ ADDED
-      alert("Please complete the CAPTCHA!");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:5000/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: sname,
-          passwd: pwd,
-          email: email,
-          mobileno: phno,
-          captcha: captcha                               // ✅ ADDED
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server responded ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data && data.success) {
-        alert("Signed up successfully!");
-        localStorage.setItem(
-          "formData",
-          JSON.stringify({ name: sname, passwd: pwd, email, mobileno: phno })
-        );
-        navigate("/home");
-        return;
-      }
-
-      if (data && data.message) alert(data.message);
-    } catch (err) {
-      console.warn("Signup backend unavailable, falling back to localStorage:", err.message);
-      localStorage.setItem(
-        "formData",
-        JSON.stringify({ name: sname, passwd: pwd, email, mobileno: phno })
-      );
-      alert("Signed up locally (offline). Navigating to Home.");
-      navigate("/home");
+    if (useAddition) {
+      setCaptchaPrompt(`${first} + ${second} = ?`);
+      setCaptchaAnswer(first + second);
+    } else {
+      const larger = Math.max(first, second);
+      const smaller = Math.min(first, second);
+      setCaptchaPrompt(`${larger} - ${smaller} = ?`);
+      setCaptchaAnswer(larger - smaller);
     }
   };
 
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!passwordRule.test(pwd)) {
+      alert("Password must be exactly 8 characters.");
+      return;
+    }
+
+    if (Number(captchaValue) !== captchaAnswer) {
+      alert("Captcha does not match. Please try again.");
+      setCaptchaValue("");
+      generateCaptcha();
+      return;
+    }
+
+    localStorage.setItem(
+      "formData",
+      JSON.stringify({ name: sname, passwd: pwd, email, mobileno: phno })
+    );
+    alert("Signed up successfully!");
+    navigate("/home");
+  };
+
   return (
-    <div>
+    <div className="page-wrap">
       <style>{`
         body {
           margin: 0;
@@ -68,8 +65,12 @@ function Signup() {
           font-weight: bold;
           background-image: url("bg.png");
           background-size: cover;
-          justify-content: center;
-          align:center;
+          background-position: center;
+          min-height: 100vh;
+        }
+        .page-wrap {
+          min-height: 100vh;
+          padding: 110px 14px 24px;
         }
         h2 {
           text-align: left;
@@ -78,11 +79,12 @@ function Signup() {
         }
         form {
           background-color: rgba(255, 235, 205, 0.8);
-          width: 400px;
-          margin: 50px auto;
+          width: min(420px, 100%);
+          margin: 0 auto;
           padding: 30px;
           border-radius: 10px;
           box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          box-sizing: border-box;
         }
         label {
           display: block;
@@ -92,9 +94,39 @@ function Signup() {
         input[type="text"], input[type="password"], input[type="email"], input[type="tel"] {
           width: 100%;
           padding: 10px;
-          margin-bottom: 20px;
+          margin-bottom: 14px;
           border: 1px solid #cccccc;
           border-radius: 5px;
+          box-sizing: border-box;
+          font-size: 16px;
+        }
+        .captcha-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 10px;
+          margin-bottom: 14px;
+          align-items: center;
+        }
+        .captcha-box {
+          background: #f2e3c9;
+          border: 1px dashed #8d7341;
+          border-radius: 5px;
+          padding: 10px;
+          color: #2f2616;
+          font-size: 16px;
+          margin-bottom: 10px;
+        }
+        .refresh-captcha {
+          border: none;
+          border-radius: 6px;
+          background: #2b6fbd;
+          color: #fff;
+          padding: 10px 12px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .refresh-captcha:hover {
+          background: #225892;
         }
         input[type="submit"] {
           width: 100%;
@@ -142,6 +174,25 @@ function Signup() {
           font-size: 20px;
           color: rgba(239, 239, 239, 1);
         }
+        @media (max-width: 600px) {
+          .page-wrap {
+            padding-top: 90px;
+          }
+          form {
+            padding: 20px;
+          }
+          .logo {
+            width: 46px;
+            height: 46px;
+          }
+          .topbar {
+            height: 72px;
+            padding: 10px 12px;
+          }
+          .topbar h2 {
+            font-size: 17px;
+          }
+        }
       `}</style>
 
       <div className="topbar">
@@ -154,7 +205,15 @@ function Signup() {
         <input type="text" id="sname" value={sname} onChange={(e) => setSname(e.target.value)} required />
 
         <label htmlFor="pwd">Password:</label>
-        <input type="password" id="pwd" value={pwd} onChange={(e) => setPwd(e.target.value)} required />
+        <input
+          type="password"
+          id="pwd"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          pattern="^.{8}$"
+          title="Password must be exactly 8 characters"
+          required
+        />
 
         <label htmlFor="emailid">Email-Id:</label>
         <input type="email" id="emailid" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -162,11 +221,21 @@ function Signup() {
         <label htmlFor="phno">Mobile No:</label>
         <input type="tel" id="phno" value={phno} pattern="[0-9]{10}" onChange={(e) => setPhno(e.target.value)} />
 
-        {/* ✅ CAPTCHA ADDED */}
-        <ReCAPTCHA
-          sitekey="6LcBRxwsAAAAAMO2rNAFPB1JY6qi4sM-hmmfjzGI"
-          onChange={(value) => setCaptcha(value)}
-        />
+        <label htmlFor="captchaInput">Captcha:</label>
+        <div className="captcha-box">Solve: {captchaPrompt}</div>
+        <div className="captcha-row">
+          <input
+            type="text"
+            id="captchaInput"
+            value={captchaValue}
+            onChange={(e) => setCaptchaValue(e.target.value)}
+            placeholder="Enter result"
+            required
+          />
+          <button type="button" className="refresh-captcha" onClick={generateCaptcha}>
+            Refresh
+          </button>
+        </div>
 
         <input type="submit" value="Sign up" />
 
